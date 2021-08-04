@@ -1,10 +1,10 @@
 package it.unipr.sowide.actodes.replication.content;
 
-public class ReleaseNode
+public class VoteRelease
 {
   private int id;
   
-  public ReleaseNode(int id) {
+  public VoteRelease(int id) {
     this.id = id;
   }
 

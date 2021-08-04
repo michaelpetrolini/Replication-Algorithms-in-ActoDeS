@@ -1,24 +1,24 @@
 package it.unipr.sowide.actodes.replication.nodes;
 
-import java.util.Arrays;
-
+import it.unipr.sowide.actodes.actor.Message;
 import it.unipr.sowide.actodes.actor.MessageHandler;
-import it.unipr.sowide.actodes.actor.Shutdown;
-import it.unipr.sowide.actodes.replication.content.ReplicaResponse;
-import it.unipr.sowide.actodes.replication.content.ReplicationRequest;
+import it.unipr.sowide.actodes.replication.content.NodeResponse;
+import it.unipr.sowide.actodes.replication.content.NodeRequest;
 
 public class PassiveReplicationNode extends ReplicationNode {
   
   private static final long serialVersionUID = 1L;
   
-  private Boolean[][] completed;
+  private int[] completed;
+  private int [] total;
 
   public PassiveReplicationNode(int index, int nClients)
   {
-    super(index, nClients);
+    super(index);
     
     if (index == 0) {
-      completed = new Boolean[nClients][];
+      completed = new int[nClients];
+      total = new int[nClients];
     }
   }
 
@@ -26,87 +26,54 @@ public class PassiveReplicationNode extends ReplicationNode {
   protected MessageHandler handleRequest()
   {
     return (m) -> {
-      if (isWorking) {
-        ReplicationRequest request = (ReplicationRequest) m.getContent();
+      if (isWorking()) {
+        NodeRequest request = (NodeRequest) m.getContent();
 
         if (index == 0) {
-          System.out.printf("Primary Node %d: received request to replicate element %d from client %d%n", index, request.getReplica(), request.getSender());
-          Boolean[] c = new Boolean[nodes.length - 1];
-          Arrays.fill(c, false);
-          completed[request.getSender()] = c;
-          
+          System.out.printf("Primary Node %d: received request by client %d%n", index, request.getSender());
+          doOperation(request);
+
+          completed[request.getSender()] = 0;
+          total[request.getSender()] = 0;
+          MessageHandler handler = handleResponse(m, request.getSender());
+                    
           for (int i = 1; i < nodes.length; i++) {
-            send(nodes[i], request);
+            future(nodes[i], request, REPLICATION_TIMEOUT, handler);
           }
         } else {        
-          System.out.printf("Secondary Node %d: received request to replicate element %d from client %d%n", index, request.getReplica(), request.getSender());
 
-          ReplicaResponse response = doOperation(request);
-          send(m.getSender(), response);
-          
-          nClients--;
-          if (nClients == 0) {
-            System.out.printf("Secondary Node %d: finished to serve all clients%n", index);
-            return Shutdown.SHUTDOWN;
-          }
+          NodeResponse response = doOperation(request);
+          send(m, response);
         }
       }
-      
+            
       return null;
     };
   }
 
-  @Override
-  protected MessageHandler handleResponse()
+  private MessageHandler handleResponse(Message message, int clientIndex)
   {
-    return (m) -> {
-      if (isWorking) {
-        if (index == 0) {
-          ReplicaResponse response = (ReplicaResponse) m.getContent();
+    return (k) -> {
+      if (isWorking()) {
+        total[clientIndex] = total[clientIndex] + 1;
+        
+        if (k.getContent() instanceof NodeResponse) {
+          NodeResponse response = (NodeResponse) k.getContent();
           System.out.printf("Primary Node %d: received response from node %d for request sent by client %d%n",
-              index, response.getNodeIndex(), response.getRequest().getSender());
+              index, response.getNodeIndex(), clientIndex);
           
-          completed[response.getRequest().getSender()][response.getNodeIndex() - 1] = true;
-          
-          if (!Arrays.asList(completed[response.getRequest().getSender()]).contains(false)) {
-            System.out.printf("Primary Node %d: received all responses for request sent by client %d%n",
-                index, response.getRequest().getSender());
-            
-            send(m.getSender(), new ReplicaResponse(index, response.getRequest(), null));
-            
-            nClients--;
-            if (nClients == 0) {
-              System.out.printf("Primary Node %d: finished to serve all clients%n", index);
-              return Shutdown.SHUTDOWN;
-            }
-          }
+          completed[clientIndex] = completed[clientIndex] + 1;
         }
+        
+        if (total[clientIndex] == nodes.length - 1) {
+          System.out.printf("Primary Node %d: received all responses for request sent by client %d (%d/%d)%n",
+              index, clientIndex, completed[clientIndex], total[clientIndex]);
+          
+          send(message, new NodeResponse(index, null, null));
+        }  
       }
-      
+
       return null;
     };
   }
-
-  @Override
-  protected MessageHandler handleVoteRequest()
-  {
-    return (m) -> {
-      return null;
-    };
-  }
-
-  @Override
-  protected MessageHandler handleNodeRelease()
-  {
-    return (m) -> {
-      return null;
-    };
-  }
-
-  @Override
-  public void handleRecovery()
-  {
-    
-  }
-
 }

@@ -1,12 +1,11 @@
 package it.unipr.sowide.actodes.replication.nodes;
 
 import it.unipr.sowide.actodes.actor.MessageHandler;
-import it.unipr.sowide.actodes.actor.Shutdown;
 import it.unipr.sowide.actodes.replication.clients.QuorumClient.Vote;
-import it.unipr.sowide.actodes.replication.content.QuorumResponse;
-import it.unipr.sowide.actodes.replication.content.ReleaseNode;
-import it.unipr.sowide.actodes.replication.content.ReplicaResponse;
-import it.unipr.sowide.actodes.replication.content.ReplicationRequest;
+import it.unipr.sowide.actodes.replication.content.VoteResponse;
+import it.unipr.sowide.actodes.replication.content.VoteRelease;
+import it.unipr.sowide.actodes.replication.content.NodeResponse;
+import it.unipr.sowide.actodes.replication.content.NodeRequest;
 import it.unipr.sowide.actodes.replication.content.VoteRequest;
 
 public class QuorumReplicationNode extends ReplicationNode {
@@ -18,40 +17,25 @@ public class QuorumReplicationNode extends ReplicationNode {
 
   public QuorumReplicationNode(int index, int nClients)
   {
-    super(index, nClients);
+    super(index);
     this.actuallyServing = -1;
     this.available = true;
-  }
-
-  @Override
-  protected MessageHandler handleResponse()
-  {
-    return (m) -> {
-      return null;
-    };
   }
 
   @Override
   protected MessageHandler handleRequest()
   {
     return (m) -> {
-      if (isWorking) {
-        ReplicationRequest request = (ReplicationRequest) m.getContent();
+      if (isWorking()) {
+        NodeRequest request = (NodeRequest) m.getContent();
         
         if (actuallyServing == request.getSender()) {
-          System.out.printf("Replication Node %d: received request to replicate element %d from client %d%n", index, request.getReplica(), request.getSender());
     
-          ReplicaResponse response = doOperation(request);
-          send(m.getSender(), response);
-          
-          nClients--;
-          if (nClients == 0) {
-            System.out.printf("Replication Node %d: finished to serve all clients%n", index);
-            return Shutdown.SHUTDOWN;
-          }
+          NodeResponse response = doOperation(request);
+          send(m, response);
         }  
       }
-
+      
       return null;
     };
   }
@@ -60,19 +44,25 @@ public class QuorumReplicationNode extends ReplicationNode {
   protected MessageHandler handleVoteRequest()
   {
     return (m) -> {
-      if (isWorking) {
+      if (isWorking()) {
         VoteRequest request = (VoteRequest) m.getContent();
         
-        if (available) {
+        if (available) 
+        {
           System.out.printf("Replication Node %d: ricevuta richiesta di voto dal client %d,"
               + " essendo libero dò il mio voto%n", index, request.getRequester());
+          
           available = false;
           actuallyServing = request.getRequester();
-          send(m, new QuorumResponse(Vote.AVAILABLE, index));
-        } else {
+          
+          send(m, new VoteResponse(Vote.AVAILABLE, index));
+        } 
+        else
+        {
           System.out.printf("Replication Node %d: ricevuta richiesta di voto dal client %d,"
-              + " essendo occupato non dò il mio voto%n", index, request.getRequester());
-          send(m, new QuorumResponse(Vote.OCCUPIED, index));
+              + " essendo occupato dal client %d non dò il mio voto%n", index, request.getRequester(), actuallyServing);
+          
+          send(m, new VoteResponse(Vote.OCCUPIED, index));
         }
       }
       
@@ -84,8 +74,8 @@ public class QuorumReplicationNode extends ReplicationNode {
   protected MessageHandler handleNodeRelease()
   {
     return (m) -> {
-      if (isWorking) {
-        ReleaseNode release = (ReleaseNode) m.getContent();
+      if (isWorking()) {
+        VoteRelease release = (VoteRelease) m.getContent();
         
         if (actuallyServing == release.getId())
         { 

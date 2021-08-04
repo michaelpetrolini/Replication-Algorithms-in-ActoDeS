@@ -1,7 +1,6 @@
 package it.unipr.sowide.actodes.replication;
 
 
-import java.io.File;
 import java.util.Scanner;
 
 import it.unipr.sowide.actodes.actor.Behavior;
@@ -16,6 +15,7 @@ import it.unipr.sowide.actodes.replication.clients.ActiveClient;
 import it.unipr.sowide.actodes.replication.clients.PassiveClient;
 import it.unipr.sowide.actodes.replication.clients.QuorumClient;
 import it.unipr.sowide.actodes.replication.content.UpdateNodes;
+import it.unipr.sowide.actodes.replication.handler.OperationHandler;
 import it.unipr.sowide.actodes.replication.nodes.ActiveReplicationNode;
 import it.unipr.sowide.actodes.replication.nodes.PassiveReplicationNode;
 import it.unipr.sowide.actodes.replication.nodes.QuorumReplicationNode;
@@ -35,11 +35,7 @@ public class Initiator extends Behavior {
     this.nNodes = nNodes;
     this.mode = mode;
     
-    for (int i = 0; i < nNodes; i++) {
-      File f = new File("partitions/node_" + i + ".txt");
-
-      f.delete();
-    }
+    OperationHandler.resetMemory(nNodes);
   }
   
   @Override

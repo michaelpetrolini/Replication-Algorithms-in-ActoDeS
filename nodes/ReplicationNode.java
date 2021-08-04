@@ -1,11 +1,7 @@
 package it.unipr.sowide.actodes.replication.nodes;
 
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.Random;
 
 import it.unipr.sowide.actodes.actor.Behavior;
@@ -14,82 +10,86 @@ import it.unipr.sowide.actodes.actor.MessageHandler;
 import it.unipr.sowide.actodes.actor.MessagePattern;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
 import it.unipr.sowide.actodes.registry.Reference;
-import it.unipr.sowide.actodes.replication.ErrorHandler;
 import it.unipr.sowide.actodes.replication.clients.Client.Action;
-import it.unipr.sowide.actodes.replication.content.ReleaseNode;
-import it.unipr.sowide.actodes.replication.content.ReplicaResponse;
-import it.unipr.sowide.actodes.replication.content.ReplicationRequest;
+import it.unipr.sowide.actodes.replication.content.VoteRelease;
+import it.unipr.sowide.actodes.replication.content.NodeResponse;
+import it.unipr.sowide.actodes.replication.content.NodeRequest;
 import it.unipr.sowide.actodes.replication.content.UpdateNodes;
 import it.unipr.sowide.actodes.replication.content.VoteRequest;
+import it.unipr.sowide.actodes.replication.handler.OperationHandler;
 
 public abstract class ReplicationNode extends Behavior {
 
 	private static final long serialVersionUID = 1L;
-	private static final int MAX_REPLICATION_TIME = 1000;
-  private static final MessagePattern REQUEST = MessagePattern.contentPattern(new IsInstance(ReplicationRequest.class));
-  private static final MessagePattern RESPONSE = MessagePattern.contentPattern(new IsInstance(ReplicaResponse.class));
+  private static final int MAX_REPLICATION_TIME = 200;
+  protected static final int HEARTBEAT_TIMEOUT = 2000;
+  protected static final int REPLICATION_TIMEOUT = 2000;
+  private static final float ERROR_PROBABILITY = 0.05f;
+  private static final float RECOVERY_PROBABILITY = 0.2f;
+  
+  private static final MessagePattern REQUEST = MessagePattern.contentPattern(new IsInstance(NodeRequest.class));
   private static final MessagePattern UPDATE = MessagePattern.contentPattern(new IsInstance(UpdateNodes.class));  
   private static final MessagePattern VOTE = MessagePattern.contentPattern(new IsInstance(VoteRequest.class));  
-  private static final MessagePattern RELEASE = MessagePattern.contentPattern(new IsInstance(ReleaseNode.class));  
+  private static final MessagePattern RELEASE = MessagePattern.contentPattern(new IsInstance(VoteRelease.class));  
 	
 	protected int index;
-	protected int nClients;
 	protected Reference[] nodes;
 	private Random random;
 	protected boolean isWorking;
 	
-	public ReplicationNode(int index, int nClients) {
+	public ReplicationNode(int index) {
 	  this.index = index;
-	  this.nClients = nClients;
 	  this.random = new Random();
 	  this.isWorking = true;
-	  
-	  ErrorHandler handler = new ErrorHandler(this, index);
-	  handler.start();
 	}
 
 	@Override
 	public void cases(CaseFactory c) {
 	  
-	  //Gestione dell'arrivo delle richieste di replicazione da parte dei client
-		MessageHandler h = handleRequest();
-		
-		MessageHandler r = handleResponse();
-		
+    //Gestione dell'arrivo delle richieste di replicazione da parte dei client
+		c.define(REQUEST, handleRequest());
+
 		//Gestione dell'aggiornamento della lista dei nodi di replicazione
-		MessageHandler a = (m) -> {
+		c.define(UPDATE, handleNodesUpdate());
+		
+		//Gestione della richiesta di voto per l'algoritmo a Quorum
+		c.define(VOTE, handleVoteRequest());
+		
+		//Gestione del rilascio del nodo dal voto per l'algoritmo a Quorum
+		c.define(RELEASE, handleNodeRelease());
+	}
+
+  private MessageHandler handleNodesUpdate()
+  {
+    return (m) -> {
 		  UpdateNodes un = (UpdateNodes) m.getContent();
 		  
 		  nodes = un.getNodes();
 		  
 		  System.out.printf("Replication Node %d: nodes received%n", index);
+		        
 		  return null;
 		};
-		
-		MessageHandler f = handleVoteRequest();
-		
-		MessageHandler s = handleNodeRelease();
-
-		c.define(REQUEST, h);
-		c.define(RESPONSE, r);
-		c.define(UPDATE, a);
-		c.define(VOTE, f);
-		c.define(RELEASE, s);
-	}
+  }
 	
-  protected ReplicaResponse doOperation(ReplicationRequest request) {
+  protected NodeResponse doOperation(NodeRequest request) {
     String response = null;
     try
     {
       Thread.sleep(random.nextInt(MAX_REPLICATION_TIME));
       
-      if (request.getAction().equals(Action.WRITE)) {
-        writeOperation(request.getSender(), request. getReplica());
-      } else {
-        response = readOperation();
+      if (request.getAction().equals(Action.WRITE))
+      {
+        System.out.printf("Replication Node %d: received write request for element %d from client %d%n", index, request.getReplica(), request.getSender());
+        OperationHandler.writeOperation(index, request.getSender(), request. getReplica());
+      } 
+      else
+      {
+        System.out.printf("Replication Node %d: received read request from client %d%n", index, request.getSender());
+        response = OperationHandler.readOperation(index, request.getSender());
       }
-      
-      return new ReplicaResponse(index, request, response);
+            
+      return new NodeResponse(index, request, response);
     }
     catch (InterruptedException | IOException e)
     {
@@ -98,41 +98,42 @@ public abstract class ReplicationNode extends Behavior {
     return null;
   }
   
-  private String readOperation() throws IOException {
-    File f = new File("partitions/node_" + index + ".txt");
-    
-    if (f.exists()) {
-      Path fileName = Path.of("partitions/node_" + index + ".txt");
-      
-      return Files.readString(fileName);
+  protected boolean isWorking() {
+    if (isWorking) {
+      if (random.nextFloat() <= ERROR_PROBABILITY) {
+        isWorking = false;
+        System.out.printf("Replication Node %d: STOPPED WORKING%n", index);
+      }
     } else {
-      return "";
+      if (random.nextFloat() <= RECOVERY_PROBABILITY) {
+        isWorking = true;
+        handleRecovery();
+        System.out.printf("Replication Node %d: RECOVERED%n", index);
+      }
     }
-  }
-  
-  private void writeOperation(int client, int value) throws IOException {
-    Path fileName = Path.of("partitions/node_" + index + ".txt");
     
-    Files.write(fileName, ("Client " + client + ": " + value + System.lineSeparator()).getBytes(),
-        StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-  }
-  
-  public boolean isWorking() {
     return isWorking;
   }
-  
-  public void setIsWorking(boolean isWorking) {
-    this.isWorking = isWorking;
-  }
 	
-	protected abstract MessageHandler handleNodeRelease();
+	protected MessageHandler handleNodeRelease()
+  {
+    return (m) -> {
+      return null;
+    };
+  }
 
-  protected abstract MessageHandler handleVoteRequest();
+  protected MessageHandler handleVoteRequest()
+  {
+    return (m) -> {
+      return null;
+    };
+  }
 
-  protected abstract MessageHandler handleResponse();
-
+  public void handleRecovery() {
+    
+  }
+  
   protected abstract MessageHandler handleRequest();
 
-  public abstract void handleRecovery();
 }
 

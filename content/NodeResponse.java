@@ -1,12 +1,12 @@
 package it.unipr.sowide.actodes.replication.content;
 
-public class ReplicaResponse
+public class NodeResponse
 {
-  private ReplicationRequest request;
+  private NodeRequest request;
   private int nodeIndex;
   private String response;
   
-  public ReplicaResponse(int index, ReplicationRequest request, String response) {
+  public NodeResponse(int index, NodeRequest request, String response) {
     this.nodeIndex = index;
     this.request = request;
     this.response = response;
@@ -17,7 +17,7 @@ public class ReplicaResponse
     return nodeIndex;
   }
 
-  public ReplicationRequest getRequest()
+  public NodeRequest getRequest()
   {
     return request;
   }

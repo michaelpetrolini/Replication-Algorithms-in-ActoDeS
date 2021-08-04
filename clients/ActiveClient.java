@@ -1,9 +1,8 @@
 package it.unipr.sowide.actodes.replication.clients;
 
 import it.unipr.sowide.actodes.actor.MessageHandler;
-import it.unipr.sowide.actodes.actor.Shutdown;
 import it.unipr.sowide.actodes.registry.Reference;
-import it.unipr.sowide.actodes.replication.content.ReplicationRequest;
+import it.unipr.sowide.actodes.replication.content.NodeRequest;
 
 public class ActiveClient extends Client {
   private static final long serialVersionUID = 1L;
@@ -15,33 +14,26 @@ public class ActiveClient extends Client {
   }
 
   @Override
-  protected MessageHandler sendRequest()
+  protected void sendRequest()
   {
-    return (m) -> {
-      if (nodes.length > 0) {
-        doingThings();
-        
-        int replica = random.nextInt();
-        System.out.printf("Client %d: starting replication request for element %d%n", index, replica);
-        
-        send(APP, new ReplicationRequest(replica, index, action));
-      }       
-      return null;
-    };
+    if (nodes.length > 0) {
+      doingThings();
+      
+      int replica = random.nextInt();
+      System.out.printf("Client %d: starting replication request for element %d%n", index, replica);
+      
+      MessageHandler handler = handleResponse();
+      
+      for (Reference node: nodes) {
+        future(node, new NodeRequest(replica, index, action), REQUEST_TIMEOUT, handler);
+      }
+    }
   }
 
   @Override
-  protected MessageHandler receiveResponse()
+  protected int getnNodes()
   {
-    return (m) -> {
-      received++;
-      if (received == nodes.length) {
-        System.out.printf("Client %d: replication completed.%n", index);
-        return Shutdown.SHUTDOWN;
-      }
-      
-      return null;
-    };
+    return nodes.length;
   }
 
 }

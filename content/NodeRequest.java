@@ -2,13 +2,13 @@ package it.unipr.sowide.actodes.replication.content;
 
 import it.unipr.sowide.actodes.replication.clients.Client.Action;
 
-public class ReplicationRequest {
+public class NodeRequest {
   
   private int replica;
   private int sender;
   private Action action;
   
-  public ReplicationRequest(int replica, int sender, Action action) {
+  public NodeRequest(int replica, int sender, Action action) {
     this.replica = replica;
     this.sender = sender;
     this.action = action;
