@@ -4,15 +4,21 @@ import it.unipr.sowide.actodes.actor.MessageHandler;
 import it.unipr.sowide.actodes.registry.Reference;
 import it.unipr.sowide.actodes.replication.content.NodeRequest;
 
+/**
+* The ActiveClient class implements the behavior of a client in an active replication algorithm.
+**/
 public class ActiveClient extends Client {
   private static final long serialVersionUID = 1L;
 
-  public ActiveClient(int index, Reference[] nodes)
+  public ActiveClient(int index, Reference[] nodes, Reference manager)
   {
-    super(index, nodes);
+    super(index, nodes, manager);
     this.action = Action.WRITE;
   }
 
+  /**
+  * Sends a request to all replication nodes and waits for their response.
+  **/
   @Override
   protected void sendRequest()
   {
@@ -30,6 +36,7 @@ public class ActiveClient extends Client {
     }
   }
 
+  /**{@inheritDoc}**/
   @Override
   protected int getnNodes()
   {

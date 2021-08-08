@@ -8,20 +8,25 @@ import it.unipr.sowide.actodes.replication.content.NodeResponse;
 import it.unipr.sowide.actodes.replication.content.NodeRequest;
 import it.unipr.sowide.actodes.replication.content.VoteRequest;
 
+/**
+ * The QuorumReplicationNode class implements the behavior of a replication node in a quorum based replication algorithm.
+ **/
 public class QuorumReplicationNode extends ReplicationNode {
 
   private static final long serialVersionUID = 1L;
   
-  private int actuallyServing;
+  private int currentlyServing;
   private boolean available;
 
   public QuorumReplicationNode(int index, int nClients)
   {
     super(index);
-    this.actuallyServing = -1;
-    this.available = true;
+    reset();
   }
 
+  /**
+   * Handles a client's replication request by saving its value.
+   **/
   @Override
   protected MessageHandler handleRequest()
   {
@@ -29,7 +34,7 @@ public class QuorumReplicationNode extends ReplicationNode {
       if (isWorking()) {
         NodeRequest request = (NodeRequest) m.getContent();
         
-        if (actuallyServing == request.getSender()) {
+        if (currentlyServing == request.getSender()) {
     
           NodeResponse response = doOperation(request);
           send(m, response);
@@ -40,6 +45,10 @@ public class QuorumReplicationNode extends ReplicationNode {
     };
   }
 
+  /**
+   * Handles a client's vote request. If the node is not serving anyone it gives its vote
+   * to the client, otherwise it refuses.
+   **/
   @Override
   protected MessageHandler handleVoteRequest()
   {
@@ -53,14 +62,14 @@ public class QuorumReplicationNode extends ReplicationNode {
               + " essendo libero dò il mio voto%n", index, request.getRequester());
           
           available = false;
-          actuallyServing = request.getRequester();
+          currentlyServing = request.getRequester();
           
           send(m, new VoteResponse(Vote.AVAILABLE, index));
         } 
         else
         {
           System.out.printf("Replication Node %d: ricevuta richiesta di voto dal client %d,"
-              + " essendo occupato dal client %d non dò il mio voto%n", index, request.getRequester(), actuallyServing);
+              + " essendo occupato dal client %d non dò il mio voto%n", index, request.getRequester(), currentlyServing);
           
           send(m, new VoteResponse(Vote.OCCUPIED, index));
         }
@@ -70,6 +79,9 @@ public class QuorumReplicationNode extends ReplicationNode {
     };
   }
 
+  /**
+   * Handles a client's release, enabling the node to accept other clients' requests.
+   **/
   @Override
   protected MessageHandler handleNodeRelease()
   {
@@ -77,11 +89,10 @@ public class QuorumReplicationNode extends ReplicationNode {
       if (isWorking()) {
         VoteRelease release = (VoteRelease) m.getContent();
         
-        if (actuallyServing == release.getId())
+        if (currentlyServing == release.getId())
         { 
           System.out.printf("Replication Node %d: ricevuto permesso di rilascio dal client %d%n", index, release.getId());
-          available = true;
-          actuallyServing = -1;
+          reset();
         }
       }
       
@@ -89,10 +100,11 @@ public class QuorumReplicationNode extends ReplicationNode {
     };
   }
 
+  /**{@inheritDoc}**/
   @Override
-  public void handleRecovery()
+  public void reset()
   {
-    this.actuallyServing = -1;
+    this.currentlyServing = -1;
     this.available = true;
   }
 

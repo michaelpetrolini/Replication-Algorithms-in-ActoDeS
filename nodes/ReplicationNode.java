@@ -8,22 +8,25 @@ import it.unipr.sowide.actodes.actor.Behavior;
 import it.unipr.sowide.actodes.actor.CaseFactory;
 import it.unipr.sowide.actodes.actor.MessageHandler;
 import it.unipr.sowide.actodes.actor.MessagePattern;
+import it.unipr.sowide.actodes.actor.Shutdown;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
 import it.unipr.sowide.actodes.registry.Reference;
 import it.unipr.sowide.actodes.replication.clients.Client.Action;
 import it.unipr.sowide.actodes.replication.content.VoteRelease;
 import it.unipr.sowide.actodes.replication.content.NodeResponse;
+import it.unipr.sowide.actodes.replication.content.Reset;
 import it.unipr.sowide.actodes.replication.content.NodeRequest;
 import it.unipr.sowide.actodes.replication.content.UpdateNodes;
 import it.unipr.sowide.actodes.replication.content.VoteRequest;
 import it.unipr.sowide.actodes.replication.handler.OperationHandler;
 
+/**
+ * The ReplicationNode abstract class provides a partial implementation of a replication node.  
+**/
 public abstract class ReplicationNode extends Behavior {
 
 	private static final long serialVersionUID = 1L;
   private static final int MAX_REPLICATION_TIME = 200;
-  protected static final int HEARTBEAT_TIMEOUT = 2000;
-  protected static final int REPLICATION_TIMEOUT = 2000;
   private static final float ERROR_PROBABILITY = 0.05f;
   private static final float RECOVERY_PROBABILITY = 0.2f;
   
@@ -31,11 +34,12 @@ public abstract class ReplicationNode extends Behavior {
   private static final MessagePattern UPDATE = MessagePattern.contentPattern(new IsInstance(UpdateNodes.class));  
   private static final MessagePattern VOTE = MessagePattern.contentPattern(new IsInstance(VoteRequest.class));  
   private static final MessagePattern RELEASE = MessagePattern.contentPattern(new IsInstance(VoteRelease.class));  
+  private static final MessagePattern TERMINATE = MessagePattern.contentPattern(new IsInstance(Reset.class));  
 	
 	protected int index;
 	protected Reference[] nodes;
 	private Random random;
-	protected boolean isWorking;
+	private boolean isWorking;
 	
 	public ReplicationNode(int index) {
 	  this.index = index;
@@ -43,6 +47,7 @@ public abstract class ReplicationNode extends Behavior {
 	  this.isWorking = true;
 	}
 
+	/** {@inheritDoc} **/
 	@Override
 	public void cases(CaseFactory c) {
 	  
@@ -57,8 +62,13 @@ public abstract class ReplicationNode extends Behavior {
 		
 		//Gestione del rilascio del nodo dal voto per l'algoritmo a Quorum
 		c.define(RELEASE, handleNodeRelease());
+		
+		c.define(TERMINATE, terminate());
 	}
 
+	/**
+	 * Allows the communication between replication nodes.  
+	**/
   private MessageHandler handleNodesUpdate()
   {
     return (m) -> {
@@ -72,6 +82,9 @@ public abstract class ReplicationNode extends Behavior {
 		};
   }
 	
+  /**
+   * Performs the action required by the client.  
+  **/
   protected NodeResponse doOperation(NodeRequest request) {
     String response = null;
     try
@@ -88,7 +101,6 @@ public abstract class ReplicationNode extends Behavior {
         System.out.printf("Replication Node %d: received read request from client %d%n", index, request.getSender());
         response = OperationHandler.readOperation(index, request.getSender());
       }
-            
       return new NodeResponse(index, request, response);
     }
     catch (InterruptedException | IOException e)
@@ -98,6 +110,9 @@ public abstract class ReplicationNode extends Behavior {
     return null;
   }
   
+  /**
+   * Checks if the replication node is currently working or if it is down.  
+  **/
   protected boolean isWorking() {
     if (isWorking) {
       if (random.nextFloat() <= ERROR_PROBABILITY) {
@@ -107,7 +122,7 @@ public abstract class ReplicationNode extends Behavior {
     } else {
       if (random.nextFloat() <= RECOVERY_PROBABILITY) {
         isWorking = true;
-        handleRecovery();
+        reset();
         System.out.printf("Replication Node %d: RECOVERED%n", index);
       }
     }
@@ -129,8 +144,21 @@ public abstract class ReplicationNode extends Behavior {
     };
   }
 
-  public void handleRecovery() {
+  /**
+   * Resets the node to its default values.
+   **/
+  public void reset() {
     
+  }
+  
+  /**
+   * Terminates the replication node.  
+  **/
+  private MessageHandler terminate() {
+    return (m) -> {
+        System.out.printf("Replication Node %d: terminated.%n", index);
+        return Shutdown.SHUTDOWN;
+    };
   }
   
   protected abstract MessageHandler handleRequest();

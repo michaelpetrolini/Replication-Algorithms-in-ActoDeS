@@ -5,10 +5,14 @@ import it.unipr.sowide.actodes.actor.MessageHandler;
 import it.unipr.sowide.actodes.replication.content.NodeResponse;
 import it.unipr.sowide.actodes.replication.content.NodeRequest;
 
+/**
+* The PassiveReplicationNode class implements the behavior of a replication node in a passive replication algorithm.
+**/
 public class PassiveReplicationNode extends ReplicationNode {
   
   private static final long serialVersionUID = 1L;
-  
+  private static final int REPLICATION_TIMEOUT = 2000;
+
   private int[] completed;
   private int [] total;
 
@@ -22,6 +26,11 @@ public class PassiveReplicationNode extends ReplicationNode {
     }
   }
 
+  /**
+   * If the replication node is primary it saves the client's value, forwards it to all secondary
+   * nodes and then waits for their response. If the replication node is secondary it simply
+   * saves the client's value and replies to the primary node.
+   **/
   @Override
   protected MessageHandler handleRequest()
   {
@@ -33,8 +42,8 @@ public class PassiveReplicationNode extends ReplicationNode {
           System.out.printf("Primary Node %d: received request by client %d%n", index, request.getSender());
           doOperation(request);
 
-          completed[request.getSender()] = 0;
-          total[request.getSender()] = 0;
+          completed[request.getSender()] = 1;
+          total[request.getSender()] = 1;
           MessageHandler handler = handleResponse(m, request.getSender());
                     
           for (int i = 1; i < nodes.length; i++) {
@@ -51,21 +60,23 @@ public class PassiveReplicationNode extends ReplicationNode {
     };
   }
 
+  /**
+   * Implements the primary node's behavior when it receives a secondary node's response.
+   * 
+   * @param message the original client message.
+   * @param clientIndex index of the client asking for replication.
+   **/
   private MessageHandler handleResponse(Message message, int clientIndex)
   {
     return (k) -> {
       if (isWorking()) {
         total[clientIndex] = total[clientIndex] + 1;
         
-        if (k.getContent() instanceof NodeResponse) {
-          NodeResponse response = (NodeResponse) k.getContent();
-          System.out.printf("Primary Node %d: received response from node %d for request sent by client %d%n",
-              index, response.getNodeIndex(), clientIndex);
-          
+        if (k.getContent() instanceof NodeResponse) { 
           completed[clientIndex] = completed[clientIndex] + 1;
         }
         
-        if (total[clientIndex] == nodes.length - 1) {
+        if (total[clientIndex] == nodes.length) {
           System.out.printf("Primary Node %d: received all responses for request sent by client %d (%d/%d)%n",
               index, clientIndex, completed[clientIndex], total[clientIndex]);
           

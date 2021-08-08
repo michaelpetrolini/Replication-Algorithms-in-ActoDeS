@@ -5,33 +5,45 @@ import java.util.Random;
 import it.unipr.sowide.actodes.actor.Behavior;
 import it.unipr.sowide.actodes.actor.CaseFactory;
 import it.unipr.sowide.actodes.actor.MessageHandler;
+import it.unipr.sowide.actodes.actor.MessagePattern;
+import it.unipr.sowide.actodes.actor.Shutdown;
+import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
 import it.unipr.sowide.actodes.registry.Reference;
 import it.unipr.sowide.actodes.replication.content.NodeResponse;
+import it.unipr.sowide.actodes.replication.content.Reset;
 import it.unipr.sowide.actodes.replication.content.VoteRelease;
 
+/**
+* The Client abstract class provides a partial implementation of a replication client.
+**/
 public abstract class Client extends Behavior {
 	
 	private static final long serialVersionUID = 1L;
 	private static final float P_REQUEST = 0.05f;
 	private static final int SLEEP = 1000;
-  protected static final long REQUEST_TIMEOUT = 60000;
+  protected static final long REQUEST_TIMEOUT = 5000;
+  private static final MessagePattern RESET = MessagePattern.contentPattern(new IsInstance(Reset.class));
+
 	
 	protected Reference[] nodes;
+	protected Reference manager;
 	protected Random random;
 	protected int index;
 	protected int received;
 	protected int total;
   protected Action action;
 
-	public Client(int index, Reference[] nodes) {
+	public Client(int index, Reference[] nodes, Reference manager) {
 	  this.index = index;
 		this.nodes = nodes;
+		this.manager = manager;
 		this.received = 0;
 		this.total = 0;
 		this.random = new Random();
 		this.action = Action.WRITE;
 	}
 
+	/** {@inheritDoc} **/
 	@Override
 	public void cases(CaseFactory c) {
 	  
@@ -39,8 +51,13 @@ public abstract class Client extends Behavior {
 		MessageHandler a = handleRequest();
 		
 		c.define(START, a);
+		
+		c.define(RESET, restart());
 	}
 	
+	/**
+	 * Simulation of client's execution for a random time before the replication request.  
+	**/
   protected void doingThings()
   {
     while (random.nextFloat() > P_REQUEST) {
@@ -52,6 +69,9 @@ public abstract class Client extends Behavior {
     }
   }
 
+  /**
+   * Manages the sending of the requests to the replication nodes based on the type of replication algorithm  
+  **/
   private MessageHandler handleRequest() {
     return (m) -> {
       sendRequest();
@@ -60,8 +80,33 @@ public abstract class Client extends Behavior {
     };
   }
   
+  /**
+   * Handles the restart of the client to send a new request  
+  **/
+  private MessageHandler restart() {
+    return (m) -> {
+      Reset r = (Reset) m.getContent();
+      
+      if (r.isRestart()) {
+        System.out.printf("Client %d: restarting...%n", index);
+        this.received = 0;
+        this.total = 0;
+        sendRequest();
+      } else {
+        System.out.printf("Client %d: terminated.%n", index);
+        return Shutdown.SHUTDOWN;
+      }
+      
+      return null;
+    };
+  }
+  
+  
   protected abstract void sendRequest();
   
+  /**
+   * Description of the type of replication request.  
+  **/
   public enum Action {
     READ("lettura"),
     WRITE("scrittura");
@@ -79,6 +124,9 @@ public abstract class Client extends Behavior {
     }
   }
   
+  /**
+   * Handles the reception of a node response.  
+  **/
   protected MessageHandler handleResponse() {
     return (m) -> {
       total++;
@@ -91,7 +139,7 @@ public abstract class Client extends Behavior {
           
           releaseNodes();
           
-          sendRequest();
+          send(manager, new Reset(false));
         } 
         else
         {
@@ -104,15 +152,21 @@ public abstract class Client extends Behavior {
 
       if (total == getnNodes()) {
         System.out.printf("Client %d: replication completed (%d/%d).%n", index, received, getnNodes());      
-        sendRequest();
+        send(manager, new Reset(false));
       }
       
       return null;
     };
   }
   
+  /**
+  * Returns the number of node responses (or timeouts) to consider before terminating the request.
+  **/
   protected abstract int getnNodes();
 
+  /**
+   * Handles the release of the nodes voting for the client.  
+  **/
   protected void releaseNodes()
   {
     VoteRelease release = new VoteRelease(index);
