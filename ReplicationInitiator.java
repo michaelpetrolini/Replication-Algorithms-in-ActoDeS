@@ -119,9 +119,9 @@ public class ReplicationInitiator extends Behavior {
     Scanner scanner = new Scanner(System.in);
 
     System.out.println("Enter:");
-    System.out.println(" a for starting the active replication algorithm");
-    System.out.println(" p for starting the passive replication algorithm");
-    System.out.println(" q for starting the quorum based replication algorithm");
+    System.out.println(" a to start the active replication algorithm");
+    System.out.println(" p to start the passive replication algorithm");
+    System.out.println(" q to start the quorum based replication algorithm");
 
     String s = scanner.next();
 
