@@ -1,5 +1,8 @@
 package it.unipr.sowide.actodes.replication.content;
 
+/**
+ * The VoteRequest class contains the details of the clients who asks a replication for a vote.
+**/
 public class VoteRequest
 {
   private int requester;

@@ -1,5 +1,8 @@
 package it.unipr.sowide.actodes.replication.content;
 
+/**
+ * The NodeResponse class contains the details of a replication node's response to a previous client's NodeRequest.
+**/
 public class NodeResponse
 {
   private NodeRequest request;

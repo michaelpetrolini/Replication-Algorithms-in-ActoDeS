@@ -12,10 +12,10 @@ import it.unipr.sowide.actodes.controller.SpaceInfo;
 import it.unipr.sowide.actodes.executor.active.ThreadCoordinator;
 import it.unipr.sowide.actodes.registry.Reference;
 import it.unipr.sowide.actodes.replication.clients.ActiveClient;
-import it.unipr.sowide.actodes.replication.clients.ClientManager;
 import it.unipr.sowide.actodes.replication.clients.PassiveClient;
 import it.unipr.sowide.actodes.replication.clients.QuorumClient;
-import it.unipr.sowide.actodes.replication.content.UpdateNodes;
+import it.unipr.sowide.actodes.replication.content.NodesUpdate;
+import it.unipr.sowide.actodes.replication.handler.ClientHandler;
 import it.unipr.sowide.actodes.replication.handler.OperationHandler;
 import it.unipr.sowide.actodes.replication.nodes.ActiveReplicationNode;
 import it.unipr.sowide.actodes.replication.nodes.PassiveReplicationNode;
@@ -53,7 +53,6 @@ public class ReplicationInitiator extends Behavior {
       if (nNodes > 0 && nClients > 0 && nOperations >= nClients) {          
         nodes = new Reference[nNodes];
 
-        //Creazione dei nodi di replicazione
         for (int i = 0; i < nNodes; i++) {
           switch (mode) {
             case "a":
@@ -68,12 +67,10 @@ public class ReplicationInitiator extends Behavior {
           }
         }
         
-        //Broadcast ai nodi di replicazione con la lista dei fratelli
-        send(APP, new UpdateNodes(nodes));
+        send(APP, new NodesUpdate(nodes));
         
-        Reference manager = actor(new ClientManager(nOperations, nClients));
+        Reference manager = actor(new ClientHandler(nOperations, nClients));
         
-        //Creazione dei client
         for (int i = 0; i < nClients; i++) {
           switch (mode) {
             case "a":
@@ -105,8 +102,8 @@ public class ReplicationInitiator extends Behavior {
   **/
   public static void main(final String[] v) {
     int nNodes = 10;
-    int nClients = 10;
-    int nOperations = 50;
+    int nClients = 3;
+    int nOperations = 15;
     boolean actodesVerbose = false;
     
     Configuration c =  SpaceInfo.INFO.getConfiguration();

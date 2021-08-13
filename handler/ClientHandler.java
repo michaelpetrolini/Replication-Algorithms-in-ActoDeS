@@ -1,4 +1,4 @@
-package it.unipr.sowide.actodes.replication.clients;
+package it.unipr.sowide.actodes.replication.handler;
 
 import it.unipr.sowide.actodes.actor.Behavior;
 import it.unipr.sowide.actodes.actor.CaseFactory;
@@ -11,7 +11,7 @@ import it.unipr.sowide.actodes.replication.content.Reset;
 /**
  * The ClientManager class is used to handle the life cycle of the clients and the replication nodes.  
 **/
-public class ClientManager extends Behavior
+public class ClientHandler extends Behavior
 {
 
   private static final long serialVersionUID = 1L;
@@ -22,7 +22,7 @@ public class ClientManager extends Behavior
   private int nClients;
   private int currentClients;
   
-  public ClientManager(int nOperations, int nClients) {
+  public ClientHandler(int nOperations, int nClients) {
     this.nOperations = nOperations - nClients;
     this.nClients = nClients;
     this.current = 0;
@@ -39,7 +39,9 @@ public class ClientManager extends Behavior
   }
 
   /**
-   * Decides wheter to restart a client, terminate it or terminate all replication nodes.  
+   * Decides whether to restart a client, terminate it or terminate all replication nodes.
+   * 
+   * @return a MessageHandler to handle the reset request sent by a client
   **/
   private MessageHandler handleResetRequest()
   {

@@ -6,8 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -21,6 +19,8 @@ public class OperationHandler
    *
    * @param node index of the replication node.
    * @param client index of the client.
+   * 
+   * @return the value previously stored by the client or an empty string.
   **/
   public static String readOperation(int node, int client) throws IOException {
     File f = new File("partitions/node_" + node + ".txt");
@@ -28,13 +28,10 @@ public class OperationHandler
     if (f.exists()) {
       Path fileName = Path.of("partitions/node_" + node + ".txt");
       
-      List<String> lines = Files.readAllLines(fileName).parallelStream().filter(s -> s.contains("Client " + client)).collect(Collectors.toList());
+      List<String> lines = Files.readAllLines(fileName).stream().filter(s -> s.contains("Client " + client)).collect(Collectors.toList());
       
       if (!lines.isEmpty()) {
-        Pattern pattern = Pattern.compile("-?\\d+");
-        Matcher matcher = pattern.matcher(lines.get(0));
-        
-        return matcher.group();
+        return lines.get(0).replace("Client " + client + ": ", "");
       }
     }
     

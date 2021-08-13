@@ -1,7 +1,5 @@
 package it.unipr.sowide.actodes.replication.clients;
 
-import static java.util.stream.Collectors.toList;
-
 import java.util.Arrays;
 
 import it.unipr.sowide.actodes.actor.MessageHandler;
@@ -18,11 +16,12 @@ import it.unipr.sowide.actodes.replication.content.VoteRequest;
 public class QuorumClient extends Client {
 
   private static final long serialVersionUID = 1L;
-  private static final int VOTE_TIMEOUT = 15000;
+  private static final int VOTE_TIMEOUT = 5000;
   private static final float WRITE_PROBABILITY = 0.2f;
 
   private Vote[] votes;
   private boolean completed;
+  private int totalVotes;
 
   public QuorumClient(int index, Reference[] nodes, Reference manager)
   {
@@ -39,12 +38,14 @@ public class QuorumClient extends Client {
     
     votes = new Vote[nodes.length];
     Arrays.fill(votes, Vote.NOT_ARRIVED);
+    
     action = (random.nextFloat() > WRITE_PROBABILITY)? Action.READ: Action.WRITE;
     completed = false;
+    totalVotes = 0;
     
     MessageHandler voteHandler = handleVote();
     
-    System.out.printf("Client %d: inizio invio richieste di voto di %s a tutti i client%n", index, action.getAction());
+    System.out.printf("Client %d: starting to send vote requests for %s to all replication nodes%n", index, action.getAction());
     
     for (int i = 0; i < nodes.length; i++) {
       if (votes[i].equals(Vote.NOT_ARRIVED)) {
@@ -55,46 +56,46 @@ public class QuorumClient extends Client {
 
   /**
   * Counts the number of votes arrived and, if they are enough, send a replication request for reading or writing.
+  * 
+  * @return a MessageHandler to handle the votes arriving from the replication nodes.
   **/
   private MessageHandler handleVote()
   {
     return (a) -> {
-      total++;
+      totalVotes++;
       
-      int nAvailable = Arrays.asList(votes).stream().filter(vote -> vote.equals(Vote.AVAILABLE)).collect(toList()).size();
-
-      if (a.getContent() instanceof VoteResponse) {
-        VoteResponse response = (VoteResponse) a.getContent();
-        
-        votes[response.getVoter()] = response.getVote();
-                
+      if (a.getContent() instanceof VoteResponse) {                
         if (completed) {
           send(a.getSender(), new VoteRelease(index));
+        } 
+        else {
+          VoteResponse response = (VoteResponse) a.getContent();
+          votes[response.getVoter()] = response.getVote();
         }
       }
       
-      if (!completed) {
-        if ((action.equals(Action.READ) && nAvailable == 2) ||
-            (action.equals(Action.WRITE) && nAvailable == nodes.length - 1)) {
-          
-          completed = true;
+      long nAvailable = Arrays.asList(votes).stream().filter(vote -> vote.equals(Vote.AVAILABLE)).count();
+      
+      if (!completed && ((action.equals(Action.READ) && nAvailable == 2) ||
+          (action.equals(Action.WRITE) && nAvailable == nodes.length - 1))) {
+        
+        completed = true;
 
-          System.out.printf("Client %d: arrivati abbastanza voti per la richiesta di %s%n", index, action.getAction());
+        System.out.printf("Client %d: has enough votes for the %s request%n", index, action.getAction());
 
-          int replica = random.nextInt();
-          NodeRequest request = new NodeRequest(replica, index, action);
-                    
-          for (int i = 0; i < nodes.length; i++) {
-            if (votes[i].equals(Vote.AVAILABLE)) {
-              future(nodes[i], request, REQUEST_TIMEOUT, handleResponse());
-            }
+        int replica = random.nextInt();
+        NodeRequest request = new NodeRequest(replica, index, action);
+                  
+        for (int i = 0; i < nodes.length; i++) {
+          if (votes[i].equals(Vote.AVAILABLE)) {
+            future(nodes[i], request, REQUEST_TIMEOUT, handleResponse());
           }
         }
-      } 
+      }
       
-      if (total == nodes.length && !completed)
+      if (totalVotes == nodes.length && !completed)
       {
-        System.out.printf("Client %d: non sono arrivati abbastanza voti per la richiesta di %s (%d/%d)%n", index, action.getAction(),
+        System.out.printf("Client %d: doesn't have enough votes for the %s request (%d/%d)%n", index, action.getAction(),
             nAvailable, (action.equals(Action.WRITE))?nodes.length - 1: 2);
         releaseNodes();
         
@@ -116,9 +117,9 @@ public class QuorumClient extends Client {
 
   /**{@inheritDoc}**/
   @Override
-  protected int getnNodes()
+  protected long getnNodes()
   {
-    return Arrays.asList(votes).stream().filter(vote -> vote.equals(Vote.AVAILABLE)).collect(toList()).size();
+    return Arrays.asList(votes).stream().filter(vote -> vote.equals(Vote.AVAILABLE)).count();
   }
 
 }

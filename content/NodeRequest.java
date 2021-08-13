@@ -2,6 +2,9 @@ package it.unipr.sowide.actodes.replication.content;
 
 import it.unipr.sowide.actodes.replication.clients.Client.Action;
 
+/**
+ * The NodeRequest class contains the details of a client's request to write or read from a replication node.
+**/
 public class NodeRequest {
   
   private int replica;

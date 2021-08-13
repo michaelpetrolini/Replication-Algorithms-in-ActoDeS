@@ -1,5 +1,8 @@
 package it.unipr.sowide.actodes.replication.content;
 
+/**
+ * The Reset class handles the request and the response to manage the restarting of the replication process.
+**/
 public class Reset
 {
   

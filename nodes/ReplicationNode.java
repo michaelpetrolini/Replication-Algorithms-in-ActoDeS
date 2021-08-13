@@ -16,7 +16,7 @@ import it.unipr.sowide.actodes.replication.content.VoteRelease;
 import it.unipr.sowide.actodes.replication.content.NodeResponse;
 import it.unipr.sowide.actodes.replication.content.Reset;
 import it.unipr.sowide.actodes.replication.content.NodeRequest;
-import it.unipr.sowide.actodes.replication.content.UpdateNodes;
+import it.unipr.sowide.actodes.replication.content.NodesUpdate;
 import it.unipr.sowide.actodes.replication.content.VoteRequest;
 import it.unipr.sowide.actodes.replication.handler.OperationHandler;
 
@@ -31,7 +31,7 @@ public abstract class ReplicationNode extends Behavior {
   private static final float RECOVERY_PROBABILITY = 0.2f;
   
   private static final MessagePattern REQUEST = MessagePattern.contentPattern(new IsInstance(NodeRequest.class));
-  private static final MessagePattern UPDATE = MessagePattern.contentPattern(new IsInstance(UpdateNodes.class));  
+  private static final MessagePattern UPDATE = MessagePattern.contentPattern(new IsInstance(NodesUpdate.class));  
   private static final MessagePattern VOTE = MessagePattern.contentPattern(new IsInstance(VoteRequest.class));  
   private static final MessagePattern RELEASE = MessagePattern.contentPattern(new IsInstance(VoteRelease.class));  
   private static final MessagePattern TERMINATE = MessagePattern.contentPattern(new IsInstance(Reset.class));  
@@ -51,28 +51,26 @@ public abstract class ReplicationNode extends Behavior {
 	@Override
 	public void cases(CaseFactory c) {
 	  
-    //Gestione dell'arrivo delle richieste di replicazione da parte dei client
 		c.define(REQUEST, handleRequest());
 
-		//Gestione dell'aggiornamento della lista dei nodi di replicazione
 		c.define(UPDATE, handleNodesUpdate());
 		
-		//Gestione della richiesta di voto per l'algoritmo a Quorum
 		c.define(VOTE, handleVoteRequest());
 		
-		//Gestione del rilascio del nodo dal voto per l'algoritmo a Quorum
 		c.define(RELEASE, handleNodeRelease());
 		
 		c.define(TERMINATE, terminate());
 	}
 
 	/**
-	 * Allows the communication between replication nodes.  
+	 * Allows the communication between replication nodes.
+	 * 
+	 * @return a MessageHandler to save the list of replication nodes.
 	**/
   private MessageHandler handleNodesUpdate()
   {
     return (m) -> {
-		  UpdateNodes un = (UpdateNodes) m.getContent();
+		  NodesUpdate un = (NodesUpdate) m.getContent();
 		  
 		  nodes = un.getNodes();
 		  
@@ -83,7 +81,9 @@ public abstract class ReplicationNode extends Behavior {
   }
 	
   /**
-   * Performs the action required by the client.  
+   * Performs the action required by the client.
+   * 
+   * @return a NodeResponse containing the result of the operation required by the client.
   **/
   protected NodeResponse doOperation(NodeRequest request) {
     String response = null;
@@ -111,7 +111,9 @@ public abstract class ReplicationNode extends Behavior {
   }
   
   /**
-   * Checks if the replication node is currently working or if it is down.  
+   * Checks if the replication node is currently working or if it is down.
+   * 
+   * @return true if the replication node is currently working, false otherwise.
   **/
   protected boolean isWorking() {
     if (isWorking) {
@@ -130,6 +132,12 @@ public abstract class ReplicationNode extends Behavior {
     return isWorking;
   }
 	
+  /**
+   * Handles the release of the replication node from a vote given to a certain client, 
+   * enabling the node to accept other clients' requests.
+   * 
+   * @return a MessageHandler to handle the release of the replication node.
+  **/
 	protected MessageHandler handleNodeRelease()
   {
     return (m) -> {
@@ -137,6 +145,12 @@ public abstract class ReplicationNode extends Behavior {
     };
   }
 
+  /**
+   * Handles a client's vote request. If the node is not serving anyone it gives its vote
+   * to the client, otherwise it refuses.
+   * 
+   * @return a MessageHandler to handle the vote request from a client.
+  **/
   protected MessageHandler handleVoteRequest()
   {
     return (m) -> {
@@ -152,7 +166,9 @@ public abstract class ReplicationNode extends Behavior {
   }
   
   /**
-   * Terminates the replication node.  
+   * Terminates the replication node.
+   * 
+   * @return a MessageHandler to terminate the replication node.
   **/
   private MessageHandler terminate() {
     return (m) -> {

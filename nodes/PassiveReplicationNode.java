@@ -30,6 +30,8 @@ public class PassiveReplicationNode extends ReplicationNode {
    * If the replication node is primary it saves the client's value, forwards it to all secondary
    * nodes and then waits for their response. If the replication node is secondary it simply
    * saves the client's value and replies to the primary node.
+   * 
+   * @return a MessageHandler to handle the request coming from clients or the primary node.
    **/
   @Override
   protected MessageHandler handleRequest()
@@ -65,6 +67,8 @@ public class PassiveReplicationNode extends ReplicationNode {
    * 
    * @param message the original client message.
    * @param clientIndex index of the client asking for replication.
+   * 
+   * @return a MessageHandler to handle the secondary nodes' responses.
    **/
   private MessageHandler handleResponse(Message message, int clientIndex)
   {

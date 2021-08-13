@@ -38,7 +38,7 @@ public class ActiveClient extends Client {
 
   /**{@inheritDoc}**/
   @Override
-  protected int getnNodes()
+  protected long getnNodes()
   {
     return nodes.length;
   }

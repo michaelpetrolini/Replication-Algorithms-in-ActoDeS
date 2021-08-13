@@ -18,6 +18,8 @@ public class ActiveReplicationNode extends ReplicationNode {
 
   /**
   * Handles a client's replication request by saving its value.
+  * 
+  * @return a MessageHandler to handle the request coming from clients.
   **/
   @Override
   protected MessageHandler handleRequest()

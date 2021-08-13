@@ -37,7 +37,7 @@ public class PassiveClient extends Client {
 
   /**{@inheritDoc}**/
   @Override
-  protected int getnNodes()
+  protected long getnNodes()
   {
     return 1;
   }

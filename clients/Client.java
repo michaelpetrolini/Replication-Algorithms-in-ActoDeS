@@ -47,7 +47,6 @@ public abstract class Client extends Behavior {
 	@Override
 	public void cases(CaseFactory c) {
 	  
-	  //Gestione dell'invio della richiesta di replicazione
 		MessageHandler a = handleRequest();
 		
 		c.define(START, a);
@@ -70,7 +69,9 @@ public abstract class Client extends Behavior {
   }
 
   /**
-   * Manages the sending of the requests to the replication nodes based on the type of replication algorithm  
+   * Manages the sending of the requests to the replication nodes based on the type of replication algorithm
+   * 
+   * @return a MessageHandler to handle the request
   **/
   private MessageHandler handleRequest() {
     return (m) -> {
@@ -82,6 +83,8 @@ public abstract class Client extends Behavior {
   
   /**
    * Handles the restart of the client to send a new request  
+   * 
+   * @return a MessageHandler to handle the restart or termination of the client
   **/
   private MessageHandler restart() {
     return (m) -> {
@@ -89,8 +92,10 @@ public abstract class Client extends Behavior {
       
       if (r.isRestart()) {
         System.out.printf("Client %d: restarting...%n", index);
+        
         this.received = 0;
         this.total = 0;
+        
         sendRequest();
       } else {
         System.out.printf("Client %d: terminated.%n", index);
@@ -108,8 +113,8 @@ public abstract class Client extends Behavior {
    * Description of the type of replication request.  
   **/
   public enum Action {
-    READ("lettura"),
-    WRITE("scrittura");
+    READ("reading"),
+    WRITE("writing");
     
     private final String action;
 
@@ -125,7 +130,9 @@ public abstract class Client extends Behavior {
   }
   
   /**
-   * Handles the reception of a node response.  
+   * Handles the reception of a node response.
+   * 
+   * @return a MessageHandler to handle the replication nodes' replies.
   **/
   protected MessageHandler handleResponse() {
     return (m) -> {
@@ -135,7 +142,7 @@ public abstract class Client extends Behavior {
         
         if(action.equals(Action.READ)) 
         {
-          System.out.printf("Client %d: ho letto il file del nodo %d: %s%n", index, response.getNodeIndex(), response.getResponse());
+          System.out.printf("Client %d: received a value from the replication node %d: %s%n", index, response.getNodeIndex(), response.getResponse());
           
           releaseNodes();
           
@@ -144,7 +151,6 @@ public abstract class Client extends Behavior {
         else
         {
           received++;
-          
           send(m.getSender(), new VoteRelease(index));
         } 
       }
@@ -161,8 +167,10 @@ public abstract class Client extends Behavior {
   
   /**
   * Returns the number of node responses (or timeouts) to consider before terminating the request.
+  * 
+  * @return the number of responses to consider before terminating the request.
   **/
-  protected abstract int getnNodes();
+  protected abstract long getnNodes();
 
   /**
    * Handles the release of the nodes voting for the client.  

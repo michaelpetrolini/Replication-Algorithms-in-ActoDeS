@@ -26,7 +26,9 @@ public class QuorumReplicationNode extends ReplicationNode {
 
   /**
    * Handles a client's replication request by saving its value.
-   **/
+   * 
+   * @return a MessageHandler to handle the request coming from clients.
+  **/
   @Override
   protected MessageHandler handleRequest()
   {
@@ -45,10 +47,7 @@ public class QuorumReplicationNode extends ReplicationNode {
     };
   }
 
-  /**
-   * Handles a client's vote request. If the node is not serving anyone it gives its vote
-   * to the client, otherwise it refuses.
-   **/
+  /**{@inheritDoc}**/
   @Override
   protected MessageHandler handleVoteRequest()
   {
@@ -58,8 +57,8 @@ public class QuorumReplicationNode extends ReplicationNode {
         
         if (available) 
         {
-          System.out.printf("Replication Node %d: ricevuta richiesta di voto dal client %d,"
-              + " essendo libero dò il mio voto%n", index, request.getRequester());
+          System.out.printf("Replication Node %d: received a vote request from client %d,"
+              + " I'm free so I'm giving my vote%n", index, request.getRequester());
           
           available = false;
           currentlyServing = request.getRequester();
@@ -68,8 +67,8 @@ public class QuorumReplicationNode extends ReplicationNode {
         } 
         else
         {
-          System.out.printf("Replication Node %d: ricevuta richiesta di voto dal client %d,"
-              + " essendo occupato dal client %d non dò il mio voto%n", index, request.getRequester(), currentlyServing);
+          System.out.printf("Replication Node %d: received a vote request from client %d,"
+              + " I'm occupied with client %d so I can't give my vote%n", index, request.getRequester(), currentlyServing);
           
           send(m, new VoteResponse(Vote.OCCUPIED, index));
         }
@@ -79,9 +78,7 @@ public class QuorumReplicationNode extends ReplicationNode {
     };
   }
 
-  /**
-   * Handles a client's release, enabling the node to accept other clients' requests.
-   **/
+  /**{@inheritDoc}**/
   @Override
   protected MessageHandler handleNodeRelease()
   {
@@ -91,7 +88,7 @@ public class QuorumReplicationNode extends ReplicationNode {
         
         if (currentlyServing == release.getId())
         { 
-          System.out.printf("Replication Node %d: ricevuto permesso di rilascio dal client %d%n", index, release.getId());
+          System.out.printf("Replication Node %d: received a release from client %d%n", index, release.getId());
           reset();
         }
       }
