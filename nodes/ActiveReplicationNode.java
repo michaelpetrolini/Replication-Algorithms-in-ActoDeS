@@ -1,8 +1,8 @@
 package it.unipr.sowide.actodes.replication.nodes;
 
 import it.unipr.sowide.actodes.actor.MessageHandler;
-import it.unipr.sowide.actodes.replication.content.NodeResponse;
-import it.unipr.sowide.actodes.replication.content.NodeRequest;
+import it.unipr.sowide.actodes.replication.request.NodeRequest;
+import it.unipr.sowide.actodes.replication.request.NodeResponse;
 
 /**
 * The ActiveReplicationNode class implements the behavior of a replication node in an active replication algorithm.
@@ -11,7 +11,7 @@ public class ActiveReplicationNode extends ReplicationNode {
   
   private static final long serialVersionUID = 1L;
 
-  public ActiveReplicationNode(int index, int nClients)
+  public ActiveReplicationNode(int index)
   {
     super(index);
   }

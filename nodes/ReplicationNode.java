@@ -10,15 +10,13 @@ import it.unipr.sowide.actodes.actor.MessageHandler;
 import it.unipr.sowide.actodes.actor.MessagePattern;
 import it.unipr.sowide.actodes.actor.Shutdown;
 import it.unipr.sowide.actodes.filtering.constraint.IsInstance;
-import it.unipr.sowide.actodes.registry.Reference;
 import it.unipr.sowide.actodes.replication.clients.Client.Action;
-import it.unipr.sowide.actodes.replication.content.VoteRelease;
-import it.unipr.sowide.actodes.replication.content.NodeResponse;
-import it.unipr.sowide.actodes.replication.content.Reset;
-import it.unipr.sowide.actodes.replication.content.NodeRequest;
-import it.unipr.sowide.actodes.replication.content.NodesUpdate;
-import it.unipr.sowide.actodes.replication.content.VoteRequest;
+import it.unipr.sowide.actodes.replication.content.Terminate;
 import it.unipr.sowide.actodes.replication.handler.OperationHandler;
+import it.unipr.sowide.actodes.replication.request.NodeRequest;
+import it.unipr.sowide.actodes.replication.request.NodeResponse;
+import it.unipr.sowide.actodes.replication.votes.VoteRelease;
+import it.unipr.sowide.actodes.replication.votes.VoteRequest;
 
 /**
  * The ReplicationNode abstract class provides a partial implementation of a replication node.  
@@ -31,13 +29,11 @@ public abstract class ReplicationNode extends Behavior {
   private static final float RECOVERY_PROBABILITY = 0.2f;
   
   private static final MessagePattern REQUEST = MessagePattern.contentPattern(new IsInstance(NodeRequest.class));
-  private static final MessagePattern UPDATE = MessagePattern.contentPattern(new IsInstance(NodesUpdate.class));  
   private static final MessagePattern VOTE = MessagePattern.contentPattern(new IsInstance(VoteRequest.class));  
   private static final MessagePattern RELEASE = MessagePattern.contentPattern(new IsInstance(VoteRelease.class));  
-  private static final MessagePattern TERMINATE = MessagePattern.contentPattern(new IsInstance(Reset.class));  
+  private static final MessagePattern TERMINATE = MessagePattern.contentPattern(new IsInstance(Terminate.class));  
 	
 	protected int index;
-	protected Reference[] nodes;
 	private Random random;
 	private boolean isWorking;
 	
@@ -52,8 +48,6 @@ public abstract class ReplicationNode extends Behavior {
 	public void cases(CaseFactory c) {
 	  
 		c.define(REQUEST, handleRequest());
-
-		c.define(UPDATE, handleNodesUpdate());
 		
 		c.define(VOTE, handleVoteRequest());
 		
@@ -61,24 +55,6 @@ public abstract class ReplicationNode extends Behavior {
 		
 		c.define(TERMINATE, terminate());
 	}
-
-	/**
-	 * Allows the communication between replication nodes.
-	 * 
-	 * @return a MessageHandler to save the list of replication nodes.
-	**/
-  private MessageHandler handleNodesUpdate()
-  {
-    return (m) -> {
-		  NodesUpdate un = (NodesUpdate) m.getContent();
-		  
-		  nodes = un.getNodes();
-		  
-		  System.out.printf("Replication Node %d: nodes received%n", index);
-		        
-		  return null;
-		};
-  }
 	
   /**
    * Performs the action required by the client.

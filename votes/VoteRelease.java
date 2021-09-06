@@ -1,4 +1,4 @@
-package it.unipr.sowide.actodes.replication.content;
+package it.unipr.sowide.actodes.replication.votes;
 
 /**
  * The VoteRelease class contains the details of the clients who wants to release a replication node from its vote.

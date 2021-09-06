@@ -11,11 +11,8 @@ import it.unipr.sowide.actodes.configuration.Configuration;
 import it.unipr.sowide.actodes.controller.SpaceInfo;
 import it.unipr.sowide.actodes.executor.active.ThreadCoordinator;
 import it.unipr.sowide.actodes.registry.Reference;
-import it.unipr.sowide.actodes.replication.clients.ActiveClient;
-import it.unipr.sowide.actodes.replication.clients.PassiveClient;
-import it.unipr.sowide.actodes.replication.clients.QuorumClient;
-import it.unipr.sowide.actodes.replication.content.NodesUpdate;
-import it.unipr.sowide.actodes.replication.handler.ClientHandler;
+import it.unipr.sowide.actodes.replication.clients.Client;
+import it.unipr.sowide.actodes.replication.handler.FrontEnd;
 import it.unipr.sowide.actodes.replication.handler.OperationHandler;
 import it.unipr.sowide.actodes.replication.nodes.ActiveReplicationNode;
 import it.unipr.sowide.actodes.replication.nodes.PassiveReplicationNode;
@@ -35,9 +32,9 @@ public class ReplicationInitiator extends Behavior {
   private int nClients;
   private int nNodes;
   private int nOperations;
-  private String mode;
+  private AlgorithmType mode;
   
-  public ReplicationInitiator(int nClients, int nNodes, String mode, int nOperations) {
+  public ReplicationInitiator(int nClients, int nNodes, AlgorithmType mode, int nOperations) {
     this.nClients = nClients;
     this.nNodes = nNodes;
     this.mode = mode;
@@ -50,39 +47,28 @@ public class ReplicationInitiator extends Behavior {
   @Override
   public void cases(CaseFactory c) {
     MessageHandler h = (m) -> {
-      if (nNodes > 0 && nClients > 0 && nOperations >= nClients) {          
+      if (nNodes > 0 && nClients > 0) {  
+        
         nodes = new Reference[nNodes];
+        
+        Reference fe = actor(new FrontEnd(mode, nodes, nClients));
 
         for (int i = 0; i < nNodes; i++) {
           switch (mode) {
-            case "a":
-              nodes[i] = actor(new ActiveReplicationNode(i, nClients));
+            case ACTIVE:
+              nodes[i] = actor(new ActiveReplicationNode(i));
               break;
-            case "p":
-              nodes[i] = actor(new PassiveReplicationNode(i, nClients));
+            case PASSIVE:
+              nodes[i] = actor(new PassiveReplicationNode(i, nClients, fe));
               break;
-            case "q":
-              nodes[i] = actor(new QuorumReplicationNode(i, nClients));
+            case QUORUM:
+              nodes[i] = actor(new QuorumReplicationNode(i));
               break;
           }
         }
-        
-        send(APP, new NodesUpdate(nodes));
-        
-        Reference manager = actor(new ClientHandler(nOperations, nClients));
-        
+                
         for (int i = 0; i < nClients; i++) {
-          switch (mode) {
-            case "a":
-              actor(new ActiveClient(i, nodes, manager));
-              break;
-            case "p":
-              actor(new PassiveClient(i, nodes, manager));
-              break;
-            case "q":
-              actor(new QuorumClient(i, nodes, manager));
-              break;
-          }
+          actor(new Client(i, fe, nOperations));
         }
       }
       
@@ -103,7 +89,7 @@ public class ReplicationInitiator extends Behavior {
   public static void main(final String[] v) {
     int nNodes = 10;
     int nClients = 3;
-    int nOperations = 15;
+    int nOperations = 5;
     boolean actodesVerbose = false;
     
     Configuration c =  SpaceInfo.INFO.getConfiguration();
@@ -127,8 +113,28 @@ public class ReplicationInitiator extends Behavior {
 
     scanner.close();
     
-    c.setExecutor(new ThreadCoordinator(new ReplicationInitiator(nClients, nNodes, s, nOperations)));
+    AlgorithmType type = null;
+    
+    switch (s) {
+      case "a":
+        type = AlgorithmType.ACTIVE;
+        break;
+      case "p":
+        type = AlgorithmType.PASSIVE;
+        break;
+      case "q":
+        type = AlgorithmType.QUORUM;
+        break;
+    }
+    
+    c.setExecutor(new ThreadCoordinator(new ReplicationInitiator(nClients, nNodes, type, nOperations)));
     
     c.start();
+  }
+  
+  public enum AlgorithmType {
+    ACTIVE,
+    PASSIVE,
+    QUORUM
   }
 }

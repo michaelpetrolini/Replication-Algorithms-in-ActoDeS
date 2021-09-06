@@ -2,8 +2,11 @@ package it.unipr.sowide.actodes.replication.nodes;
 
 import it.unipr.sowide.actodes.actor.Message;
 import it.unipr.sowide.actodes.actor.MessageHandler;
-import it.unipr.sowide.actodes.replication.content.NodeResponse;
-import it.unipr.sowide.actodes.replication.content.NodeRequest;
+import it.unipr.sowide.actodes.registry.Reference;
+import it.unipr.sowide.actodes.replication.request.NodeRequest;
+import it.unipr.sowide.actodes.replication.request.NodeResponse;
+import it.unipr.sowide.actodes.replication.content.Forward;
+import it.unipr.sowide.actodes.replication.content.ForwardHandler;
 
 /**
 * The PassiveReplicationNode class implements the behavior of a replication node in a passive replication algorithm.
@@ -11,18 +14,20 @@ import it.unipr.sowide.actodes.replication.content.NodeRequest;
 public class PassiveReplicationNode extends ReplicationNode {
   
   private static final long serialVersionUID = 1L;
-  private static final int REPLICATION_TIMEOUT = 2000;
+  private static final int REPLICATION_TIMEOUT = 5000;
 
   private int[] completed;
   private int [] total;
+  private Reference fe;
 
-  public PassiveReplicationNode(int index, int nClients)
+  public PassiveReplicationNode(int index, int nClients, Reference fe)
   {
     super(index);
     
     if (index == 0) {
       completed = new int[nClients];
       total = new int[nClients];
+      this.fe = fe;
     }
   }
 
@@ -47,10 +52,8 @@ public class PassiveReplicationNode extends ReplicationNode {
           completed[request.getSender()] = 1;
           total[request.getSender()] = 1;
           MessageHandler handler = handleResponse(m, request.getSender());
-                    
-          for (int i = 1; i < nodes.length; i++) {
-            future(nodes[i], request, REPLICATION_TIMEOUT, handler);
-          }
+          
+          future(fe, new Forward(request), REPLICATION_TIMEOUT, handler);
         } else {        
 
           NodeResponse response = doOperation(request);
@@ -76,16 +79,12 @@ public class PassiveReplicationNode extends ReplicationNode {
       if (isWorking()) {
         total[clientIndex] = total[clientIndex] + 1;
         
-        if (k.getContent() instanceof NodeResponse) { 
-          completed[clientIndex] = completed[clientIndex] + 1;
-        }
-        
-        if (total[clientIndex] == nodes.length) {
+        if (k.getContent() instanceof ForwardHandler) { 
+          ForwardHandler fh = (ForwardHandler) k.getContent();
           System.out.printf("Primary Node %d: received all responses for request sent by client %d (%d/%d)%n",
-              index, clientIndex, completed[clientIndex], total[clientIndex]);
-          
+              index, clientIndex, fh.getCurrent(), fh.getTotal());
           send(message, new NodeResponse(index, null, null));
-        }  
+        } 
       }
 
       return null;

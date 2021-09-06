@@ -1,4 +1,4 @@
-package it.unipr.sowide.actodes.replication.content;
+package it.unipr.sowide.actodes.replication.votes;
 
 /**
  * The VoteRequest class contains the details of the clients who asks a replication for a vote.

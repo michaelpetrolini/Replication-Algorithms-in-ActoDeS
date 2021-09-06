@@ -1,6 +1,6 @@
-package it.unipr.sowide.actodes.replication.content;
+package it.unipr.sowide.actodes.replication.votes;
 
-import it.unipr.sowide.actodes.replication.clients.QuorumClient.Vote;
+import it.unipr.sowide.actodes.replication.clients.Client.Vote;
 
 /**
  * The VoteResponse class is used to inform a client of a replication node's response to a previous VoteRequest.

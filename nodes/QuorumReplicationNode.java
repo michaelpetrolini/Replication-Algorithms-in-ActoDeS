@@ -1,12 +1,12 @@
 package it.unipr.sowide.actodes.replication.nodes;
 
 import it.unipr.sowide.actodes.actor.MessageHandler;
-import it.unipr.sowide.actodes.replication.clients.QuorumClient.Vote;
-import it.unipr.sowide.actodes.replication.content.VoteResponse;
-import it.unipr.sowide.actodes.replication.content.VoteRelease;
-import it.unipr.sowide.actodes.replication.content.NodeResponse;
-import it.unipr.sowide.actodes.replication.content.NodeRequest;
-import it.unipr.sowide.actodes.replication.content.VoteRequest;
+import it.unipr.sowide.actodes.replication.clients.Client.Vote;
+import it.unipr.sowide.actodes.replication.votes.VoteRelease;
+import it.unipr.sowide.actodes.replication.votes.VoteRequest;
+import it.unipr.sowide.actodes.replication.votes.VoteResponse;
+import it.unipr.sowide.actodes.replication.request.NodeRequest;
+import it.unipr.sowide.actodes.replication.request.NodeResponse;
 
 /**
  * The QuorumReplicationNode class implements the behavior of a replication node in a quorum based replication algorithm.
@@ -18,7 +18,7 @@ public class QuorumReplicationNode extends ReplicationNode {
   private int currentlyServing;
   private boolean available;
 
-  public QuorumReplicationNode(int index, int nClients)
+  public QuorumReplicationNode(int index)
   {
     super(index);
     reset();

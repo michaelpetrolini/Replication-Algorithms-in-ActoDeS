@@ -1,4 +1,4 @@
-package it.unipr.sowide.actodes.replication.content;
+package it.unipr.sowide.actodes.replication.request;
 
 import it.unipr.sowide.actodes.replication.clients.Client.Action;
 
